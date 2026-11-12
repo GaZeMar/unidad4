@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación: Sistema de Entrada/Salida</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(145deg, #fff8dc, #fff0ce 55%, #f0f7d9);
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .concept-item {
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s;
+            touch-action: none;
+        }
+        .concept-item:active {
+            cursor: grabbing;
+            transform: scale(0.98);
+        }
+        .drop-slot {
+            min-height: 3rem;
+            transition: all 0.3s ease;
+        }
+        .drop-slot.drag-over {
+            background-color: #fef3c7;
+            border-color: #e59b2c;
+        }
+        .correct-animation {
+            animation: pulseGreen 0.5s;
+        }
+        @keyframes pulseGreen {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        [hidden] { display: none !important; }
+        .timer-urgent { background: #fed7aa; color: #7c2d12; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-green-800 text-white shadow-lg py-6 sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 flex flex-wrap gap-3 justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold"><i class="fa-solid fa-keyboard mr-2"></i> Evaluación: Entrada y Salida</h1>
+                <p class="text-green-200 text-sm mt-1">Arquitectura de Computadoras - Unidad IV</p>
+            </div>
+            <div id="timer-panel" hidden class="rounded-xl bg-amber-100 text-green-950 px-4 py-2">
+                <span class="block text-xs font-bold uppercase">Tiempo restante</span>
+                <span id="exam-clock" role="timer" class="text-2xl font-bold tabular-nums">30:00</span>
+            </div>
+        </div>
+    </header>
+
+    <section id="exam-entry" class="mx-auto my-12 w-full max-w-xl px-4">
+        <form id="exam-entry-form" class="rounded-2xl border-t-8 border-orange-400 bg-white p-7 shadow-lg">
+            <h2 class="text-2xl font-bold text-green-900">Identificación del estudiante</h2>
+            <p class="my-3">Tienes 30 minutos a partir de que inicies. Al vencer el tiempo, se calificará lo que hayas respondido.</p>
+            <label for="student-name" class="block font-bold">Nombre completo</label>
+            <input id="student-name" name="student-name" autocomplete="name" maxlength="150" required class="mt-2 w-full rounded-lg border-2 border-amber-400 p-3">
+            <button type="submit" class="mt-5 w-full rounded-xl bg-orange-700 p-3 font-bold text-white hover:bg-orange-800">Iniciar examen</button>
+        </form>
+    </section>
+    <!-- Main Content -->
+    <main id="exam-content" hidden class="flex-grow max-w-5xl mx-auto px-4 py-8 w-full">
+        
+        <!-- Instrucciones -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 border-green-500 fade-in">
+            <h2 class="text-xl font-bold mb-2 text-green-700">Instrucciones</h2>
+            <p class="mb-2">Esta evaluación consta de dos partes, cada una con un valor de 50 puntos (Total: 100 puntos).</p>
+            <ul class="list-disc pl-5 space-y-1 text-gray-600">
+                <li><strong>Parte 1:</strong> 10 preguntas de opción múltiple. Selecciona la respuesta correcta. (5 pts c/u)</li>
+                <li><strong>Parte 2:</strong> 10 conceptos para relacionar. Arrastra el concepto hacia su descripción correspondiente. (5 pts c/u)</li>
+            </ul>
+        </div>
+
+        <!-- Parte 1: Opción Múltiple -->
+        <section id="part1-section" class="mb-12">
+            <div class="flex items-center mb-6">
+                <div class="bg-green-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-xl mr-3 shadow">1</div>
+                <h2 class="text-2xl font-bold text-gray-800">Preguntas de Opción Múltiple</h2>
+            </div>
+            <div id="questions-container" class="space-y-6">
+                <!-- Las preguntas se inyectan por JS -->
+            </div>
+        </section>
+
+        <!-- Parte 2: Relacionar Columnas (Drag & Drop) -->
+        <section id="part2-section" class="mb-12 fade-in" style="display: none;">
+            <div class="flex items-center mb-6 mt-12 pt-8 border-t-2 border-gray-200">
+                <div class="bg-green-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-xl mr-3 shadow">2</div>
+                <h2 class="text-2xl font-bold text-gray-800">Relación de Conceptos</h2>
+            </div>
+            <p class="text-gray-600 mb-6 bg-amber-50 p-4 rounded-lg border border-amber-100">
+                <i class="fa-solid fa-hand-pointer text-amber-600 mr-2"></i> 
+                <strong>Instrucciones:</strong> Arrastra cada concepto de la caja gris hacia el espacio punteado que corresponde a su descripción. (También puedes tocar un concepto para seleccionarlo y luego tocar el espacio vacío).
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Pool de Conceptos -->
+                <div class="lg:col-span-1">
+                    <div class="bg-gray-100 p-4 rounded-xl shadow-inner border border-gray-200 sticky top-28">
+                        <h3 class="font-bold text-gray-700 mb-4 text-center">Conceptos Disponibles</h3>
+                        <div id="concepts-pool" class="flex flex-col gap-3 min-h-[200px]" ondragover="allowDrop(event)" ondrop="dropElement(event)" onclick="poolClick(event)">
+                            <!-- Conceptos inyectados por JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Descripciones -->
+                <div class="lg:col-span-2">
+                    <div id="descriptions-container" class="space-y-4">
+                        <!-- Descripciones inyectadas por JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <button id="verify-btn" onclick="verifyPart2()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-105">
+                    <i class="fa-solid fa-check-double mr-2"></i> Verificar Respuestas (Parte 2)
+                </button>
+            </div>
+        </section>
+
+        <div class="mt-8 text-center">
+            <button type="button" id="finish-exam" class="rounded-xl bg-orange-700 px-6 py-3 font-bold text-white hover:bg-orange-800">Entregar examen</button>
+        </div>
+    </main>
+
+    <!-- Modal de Resultados -->
+    <div id="result-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] hidden backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center transform scale-95 transition-transform duration-300" id="modal-content">
+            <div id="modal-icon" class="text-6xl mb-4"></div>
+            <h2 class="text-3xl font-bold mb-2 text-gray-800" id="modal-title">¡Evaluación Completada!</h2>
+            <p id="result-student" class="mb-2 break-words text-xl font-bold text-green-900"></p>
+            <p id="result-reason" class="text-gray-600 mb-3"></p>
+            <p class="text-gray-700">Calificación final</p>
+            <div class="text-5xl font-black text-green-600 mb-6" id="modal-score">100 / 100</div>
+            <p class="text-gray-700 mb-8" id="modal-message"></p>
+            <button onclick="resetExam()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow transition">
+                <i class="fa-solid fa-rotate-right mr-2"></i> Repetir Evaluación
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts de Lógica -->
+    <script>
+        // --- BASE DE DATOS DE PREGUNTAS (Equilibradas en longitud y tecnicismos) ---
+        const part1Data = [
+            {
+                q: "¿Qué función principal cumple un controlador de dispositivo (driver) dentro de la jerarquía del sistema operativo?",
+                options: [
+                    "Opera como un módulo físico de hardware independiente, encargado de suministrar energía eléctrica regulada a los puertos periféricos de la tarjeta madre.",
+                    "Consiste en una aplicación de nivel de usuario que escanea continuamente los periféricos en busca de códigos maliciosos o virus informáticos en tránsito.",
+                    "Funciona como un programa que abstrae el hardware, proporcionando una interfaz estandarizada para que el sistema operativo interactúe eficientemente con él.",
+                    "Actúa como un circuito de memoria caché secundaria, almacenando temporalmente los gráficos tridimensionales para acelerar el procesamiento visual intensivo."
+                ],
+                correct: 2,
+                feedbackCorrect: "¡Excelente! El controlador o driver es fundamentalmente un traductor de software que hace que el hardware periférico sea comprensible y manejable para el núcleo del sistema operativo.",
+                feedbackIncorrect: "Incorrecto. Un driver no es un hardware de energía, un antivirus, ni una memoria caché. Es un software que proporciona una abstracción y estándar de comunicación para manejar hardware específico."
+            },
+            {
+                q: "Según su forma fundamental de procesar la información, ¿cómo se dividen estructuralmente los controladores de dispositivo?",
+                options: [
+                    "Orientados a gráficos (procesan píxeles en paralelo a alta frecuencia) y orientados a texto plano (procesan código ASCII nativo para interfaces de línea de comandos).",
+                    "Orientados a caracteres (transfieren y procesan la información byte por byte) y orientados a bloques (procesan la información agrupada en conjuntos o sectores).",
+                    "Orientados a hardware (circuitos integrados físicamente en la placa base de fábrica) y orientados a software (paquetes descargados exclusivamente desde servidores de red).",
+                    "Orientados a redes de transmisión (procesan y enrutan paquetes TCP/IP de forma nativa) y orientados a almacenamiento masivo (procesan exclusivamente bases de datos)."
+                ],
+                correct: 1,
+                feedbackCorrect: "¡Muy bien! Esta clasificación separa a los dispositivos simples como impresoras y puertos COM (caracteres) de los dispositivos masivos como discos duros (bloques o sectores).",
+                feedbackIncorrect: "Error. La arquitectura del sistema clasifica el procesamiento de E/S basándose en la agrupación de los datos: byte por byte (caracteres) frente a sectores enteros (bloques)."
+            },
+            {
+                q: "¿Cuál es el propósito central de implementar un controlador de Acceso Directo a Memoria (DMA) en el diseño del hardware?",
+                options: [
+                    "Aumentar significativamente la frecuencia del reloj del procesador central para que pueda ejecutar las instrucciones lógicas de los programas a una velocidad mucho mayor.",
+                    "Proteger de manera proactiva los sectores críticos del disco duro mediante el cifrado de información en tiempo real antes de que los datos sean enviados a la memoria caché.",
+                    "Reemplazar por completo las rutinas nativas del sistema operativo en la administración y control de todos los puertos USB y las conexiones de área local inalámbricas.",
+                    "Liberar a la unidad central de procesamiento de la tediosa tarea de transferir grandes y continuos bloques de datos entre los dispositivos periféricos y la memoria principal."
+                ],
+                correct: 3,
+                feedbackCorrect: "¡Correcto! El DMA asume el rol de 'transportista', moviendo bloques de memoria directamente al periférico para que la CPU pueda enfocarse en realizar cálculos complejos simultáneamente.",
+                feedbackIncorrect: "Incorrecto. El controlador DMA no modifica la frecuencia de reloj, no aplica técnicas de cifrado criptográfico, ni reemplaza al SO. Su función es delegar las transferencias directas de memoria."
+            },
+            {
+                q: "Durante una transferencia administrada por Acceso Directo a Memoria (DMA), ¿qué describe mejor el concepto de 'Robo de Ciclo'?",
+                options: [
+                    "El sistema operativo suspende de forma permanente la ejecución de todas las aplicaciones en segundo plano para dedicar la totalidad de recursos a la transferencia de la red.",
+                    "El disco magnético duplica temporalmente la velocidad de rotación del motor de sus platos durante un instante crítico para lograr leer el doble de sectores simultáneamente.",
+                    "El microprocesador intercepta sistemáticamente y analiza todos los paquetes de información que viajan por la tarjeta de red externa para evitar la pérdida o corrupción de bytes.",
+                    "El controlador DMA asume brevemente el dominio del bus del sistema únicamente en aquellas fases milimétricas donde la CPU no lo está utilizando para sus tareas internas."
+                ],
+                correct: 3,
+                feedbackCorrect: "¡Acertaste! Se le llama 'robo de ciclo' porque el DMA aprovecha estratégicamente las fracciones de tiempo (ej. durante la fase de decodificación de la CPU) para insertar una transferencia sin estorbar.",
+                feedbackIncorrect: "Incorrecto. El robo de ciclo no involucra detener el sistema, alterar piezas mecánicas de discos ni actuar como firewall. Se trata de intercalar transferencias en el bus cuando la CPU lo deja libre temporalmente."
+            },
+            {
+                q: "En el contexto de interconexión periférica, una característica fundamental de la comunicación asíncrona radica en que:",
+                options: [
+                    "Exige de manera estricta que tanto el módulo emisor como el módulo receptor estén sincronizados con precisión microscópica mediante un reloj maestro integrado en la placa base.",
+                    "No requiere que ambos sistemas acoplen una misma señal de reloj general, ya que delimita y sincroniza cada bloque de datos individual utilizando bits de inicio y bits de parada.",
+                    "Obliga normativamente a que la totalidad de la información se transfiera de manera exclusiva a través de conexiones de fibra óptica para poder mantener la integridad a larga distancia.",
+                    "Depende de manera absoluta y completa de un circuito gráfico dedicado de alto rendimiento para lograr gestionar el enorme flujo de la información multimedia que se dirige a la pantalla."
+                ],
+                correct: 1,
+                feedbackCorrect: "¡Muy bien! Al carecer de un reloj en común, la comunicación asíncrona rodea el paquete de datos con marcadores (start/stop) para que el receptor sepa exactamente cuándo comienza y termina el mensaje.",
+                feedbackIncorrect: "Error. No exige sincronización estricta por hardware, no depende de fibra óptica ni de circuitos gráficos. Precisamente 'asíncrona' indica falta de un reloj compartido continuo, reemplazándolo por marcadores lógicos."
+            },
+            {
+                q: "Según la normativa técnica histórica establecida para los formatos de medios ópticos, ¿qué especifica el documento llamado 'Yellow Book'?",
+                options: [
+                    "Define de manera sumamente exclusiva las normativas para fabricar los discos de formato grabable y regrabable en el hogar utilizando diodos láser de muy alta intensidad focalizada.",
+                    "Establece con total precisión los parámetros de audio digital estéreo lineal sin compresión, estándar utilizado en la industria musical desde sus inicios por las marcas Sony y Philips.",
+                    "Normaliza formalmente los protocolos de red y de ruteo necesarios para transmitir secuencias de video en ultra alta definición a través de dispositivos de almacenamiento flash interconectados.",
+                    "Describe pormenorizadamente la compleja estructura de sectores y el formato lógico necesarios para la producción y lectura de discos compactos destinados al almacenamiento de datos informáticos."
+                ],
+                correct: 3,
+                feedbackCorrect: "¡Correcto! Mientras el 'Red Book' estandarizó los CD de música originales, el 'Yellow Book' (Libro Amarillo) fue la expansión clave que definió cómo estructurar sectores para guardar datos informáticos (CD-ROM).",
+                feedbackIncorrect: "Incorrecto. Los discos grabables son del Orange Book y el audio original del Red Book. El Yellow Book es la especificación estandarizada para guardar datos de computadora convencionales en formato CD-ROM."
+            },
+            {
+                q: "En la lectura de medios ópticos contemporáneos como un CD o DVD, la información en formato binario se representa mediante:",
+                options: [
+                    "Una secuencia microscópica y continua dispuesta en espiral que está compuesta lógicamente por depresiones o resaltes (pits) y áreas planas reflectantes (lands) bajo una capa de protección.",
+                    "Una serie muy compleja de diminutas cargas electromagnéticas estáticas organizadas meticulosamente en pistas concéntricas que interactúan con una aguja magnética recubierta en aleación de titanio.",
+                    "Un conjunto ordenado de diminutos microchips de memoria no volátil que están fundidos e incrustados directamente dentro de la densa capa de resina de policarbonato industrial.",
+                    "Una densa matriz bidimensional formada por pequeñas celdas fotosensibles avanzadas que emiten de forma activa diferentes longitudes de onda de luz ultravioleta cuando el motor acelera."
+                ],
+                correct: 0,
+                feedbackCorrect: "¡Así es! A diferencia de los discos magnéticos, el láser óptico detecta las variaciones en los diminutos relieves físicos (pits y lands), interpretando los cambios en el reflejo de la luz como unos y ceros.",
+                feedbackIncorrect: "Incorrecto. Los discos ópticos no utilizan agujas electromagnéticas, chips de memoria incrustados ni emisión fotosensible ultravioleta. Usan un láser que rebota contra los relieves microscópicos estampados (pits y lands)."
+            },
+            {
+                q: "Dentro de la arquitectura de Entrada/Salida, ¿qué funcionalidad técnica principal permite clasificar a un elemento como un 'Dispositivo Mixto'?",
+                options: [
+                    "Están manufacturados estrictamente para funcionar como puentes analógicos dedicados que permiten enlazar equipos terminales sumamente obsoletos con placas madre de reciente lanzamiento.",
+                    "Tienen la doble capacidad bidireccional estructural, lo que les permite tanto enviar información hacia la unidad de procesamiento como recibir paquetes desde ella para su posterior almacenamiento.",
+                    "Sirven exclusivamente como transformadores diseñados para convertir la información binaria pura proveniente del bus de datos en representaciones visuales o físicas inteligibles para un humano.",
+                    "Están adaptados de manera exclusiva para captar y registrar las interacciones motrices mecánicas que efectúa el usuario físico para poder traducirlas a impulsos eléctricos puros hacia el sistema."
+                ],
+                correct: 1,
+                feedbackCorrect: "¡Correcto! Elementos como el disco duro, la memoria RAM o una tarjeta de red funcionan tanto como fuentes generadoras de datos (Entrada) como sumideros receptores de datos (Salida) del procesador.",
+                feedbackIncorrect: "Incorrecto. Transformadores visuales (monitores) son de salida y las interacciones mecánicas (teclados) son de entrada. Un dispositivo mixto realiza simultánea y bidireccionalmente operaciones de entrada y salida."
+            },
+            {
+                q: "Según el rendimiento analizado en interfaces de sistemas de almacenamiento, ¿por qué los discos duros con interfaz SCSI predominan en los servidores?",
+                options: [
+                    "Proporcionan una transferencia de bloques de datos sostenida y de enorme estabilidad operativa, logrando una altísima independencia respecto al nivel de carga de cálculo del procesador central.",
+                    "Emplean una arquitectura de transmisión completamente inalámbrica y de muy baja latencia, lo que elimina sistemáticamente la obligación de rutear cables de bus grueso por el interior del chasis.",
+                    "Están configurados de fábrica para absorber considerablemente menos potencia de la red eléctrica, circunstancia que alarga dramáticamente el ciclo de uso de las baterías en el cómputo de tipo portátil.",
+                    "Su ensamble productivo industrial se enfoca única y exclusivamente en el entorno doméstico general, logrando que sus costos en el mercado de menudeo sean los más bajos y rentables de la industria."
+                ],
+                correct: 0,
+                feedbackCorrect: "¡Excelente! A diferencia de discos IDE/SATA estándar, las controladoras SCSI son 'inteligentes', lo que permite que procesen múltiples peticiones complejas sin abrumar ni consumir recursos del microprocesador.",
+                feedbackIncorrect: "Incorrecto. Los discos SCSI no son inalámbricos, no consumen poca energía (suelen ser de alto consumo y revoluciones) y definitivamente no son económicos ni de enfoque doméstico, sino profesionales y de alto desempeño."
+            },
+            {
+                q: "En los conceptos base del subsistema, es crucial diferenciar entre el 'soporte o medio' y el 'dispositivo'. ¿Cuál es la diferencia conceptual precisa?",
+                options: [
+                    "No se contempla absolutamente ninguna diferenciación de arquitectura técnica entre ambos términos en los glosarios de informática moderna; la literatura reciente los aborda como sinónimos estrictos.",
+                    "El 'dispositivo' comprende la sección de enlace lógico de los programas con el kernel, en tanto que el 'medio' alude siempre a la tablilla de silicio impreso que proporciona la correcta tensión eléctrica.",
+                    "El 'medio' engloba históricamente solo a los elementos que interactúan humanamente con la entrada, y el 'dispositivo' es un término reservado severamente para los grandes despliegues visuales de monitor táctil.",
+                    "El 'medio' hace alusión al material pasivo físico donde se graban de manera persistente los datos, en tanto que el 'dispositivo' es el mecanismo activo o máquina encargada de efectuar la lectura y escritura en él."
+                ],
+                correct: 3,
+                feedbackCorrect: "¡Acertaste! Por ejemplo, la cinta magnética o el propio disco compacto de policarbonato es el 'medio', mientras que el lector de cintas o la unidad de CD-ROM láser representan el 'dispositivo'.",
+                feedbackIncorrect: "Incorrecto. Sí hay una distinción crítica y no están limitados por tipos visuales o lógicos. El 'medio' es el material inerte contenedor del dato, y el 'dispositivo' es el hardware que realiza mecánicamente la lectura/escritura sobre este material."
+            }
+        ];
+
+        // --- CONCEPTOS DE ARRASTRAR Y SOLTAR ---
+        const part2Data = [
+            { id: "c1", match: "d1", text: "Driver (Controlador)", desc: "Programa informático fundamental que permite al sistema operativo interactuar con un periférico mediante una abstracción del hardware." },
+            { id: "c2", match: "d2", text: "Tecnología DMA", desc: "Mecanismo especializado que permite la transferencia directa de bloques de datos entre periféricos y memoria sin la continua intervención del procesador." },
+            { id: "c3", match: "d3", text: "Robo de Ciclo", desc: "Técnica de optimización donde el controlador usa brevemente el bus del sistema solo en aquellas fases en que el procesador no lo requiere." },
+            { id: "c4", match: "d4", text: "Dispositivo de Entrada", desc: "Periférico de hardware que sirve estrictamente para convertir información e interacción externa en señales eléctricas procesables (ej. ratón o teclado)." },
+            { id: "c5", match: "d5", text: "Comunicación Asíncrona", desc: "Método de transmisión de datos que no usa una señal de reloj común, dependiendo de bits de inicio (start) y parada (stop) para sincronizar el flujo." },
+            { id: "c6", match: "d6", text: "Dispositivos Mixtos", desc: "Aparatos periféricos que operan de manera bidireccional, teniendo capacidad tanto de enviar como de recibir flujos de datos (ej. disco duro, módem)." },
+            { id: "c7", match: "d7", text: "Formato Yellow Book", desc: "Estándar técnico documentado que especifica detalladamente el formato lógico para almacenar datos de computadora de manera confiable en un CD-ROM." },
+            { id: "c8", match: "d8", text: "Lands y Pits", desc: "Alteraciones topográficas microscópicas (llanuras y resaltes) dispuestas en espiral sobre un soporte óptico para representar código binario." },
+            { id: "c9", match: "d9", text: "Orientado a Bloques", desc: "Clasificación de controlador de dispositivo que procesa y despacha agrupaciones de información de una longitud específica en sectores." },
+            { id: "c10", match: "d10", text: "Interfaz SCSI", desc: "Estándar de hardware de muy alto desempeño para discos y periféricos, caracterizado por su estabilidad en multitarea y uso común en servidores." }
+        ];
+
+        // --- ESTADO DE LA APLICACIÓN ---
+        let scores = { part1: 0, part2: 0 };
+        let answeredQuestions = new Set();
+        let selectedDragElement = null; 
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPart1();
+            renderPart2();
+        });
+
+        // --- RENDERIZADO PARTE 1 ---
+        function renderPart1() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            
+            part1Data.forEach((q, index) => {
+                const qDiv = document.createElement('div');
+                qDiv.className = 'bg-white rounded-xl shadow-md p-6 border border-gray-100 fade-in hover:shadow-lg transition-shadow';
+                qDiv.id = `question-card-${index}`;
+                
+                let optionsHtml = '';
+                q.options.forEach((opt, optIdx) => {
+                    optionsHtml += `
+                        <button onclick="handleAnswer(${index}, ${optIdx})" id="btn-${index}-${optIdx}"
+                            class="w-full text-left p-4 rounded-lg border-2 border-gray-200 hover:border-green-400 hover:bg-green-50 transition-all font-medium text-gray-700 mt-3 relative overflow-hidden group">
+                            <span class="inline-block w-6 text-green-600 font-bold">${String.fromCharCode(65 + optIdx)}.</span> ${opt}
+                        </button>
+                    `;
+                });
+
+                qDiv.innerHTML = `
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 leading-relaxed">${index + 1}. ${q.q}</h3>
+                    <div class="space-y-2">
+                        ${optionsHtml}
+                    </div>
+                    <div id="feedback-${index}" class="mt-4 p-4 rounded-lg hidden font-medium"></div>
+                `;
+                container.appendChild(qDiv);
+            });
+        }
+
+        function handleAnswer(qIndex, selectedOptIndex) {
+            if (!canAnswer() || answeredQuestions.has(qIndex)) return; 
+            
+            answeredQuestions.add(qIndex);
+            const questionData = part1Data[qIndex];
+            const isCorrect = selectedOptIndex === questionData.correct;
+            
+            const selectedBtn = document.getElementById(`btn-${qIndex}-${selectedOptIndex}`);
+            const correctBtn = document.getElementById(`btn-${qIndex}-${questionData.correct}`);
+            
+            // Deshabilitar todos los botones
+            for(let i=0; i<4; i++){
+                const btn = document.getElementById(`btn-${qIndex}-${i}`);
+                btn.disabled = true;
+                btn.classList.remove('hover:border-green-400', 'hover:bg-green-50');
+                btn.classList.add('cursor-not-allowed', 'opacity-60');
+            }
+
+            // Marcar Correcta
+            correctBtn.classList.remove('border-gray-200', 'opacity-60');
+            correctBtn.classList.add('bg-green-100', 'border-green-500', 'text-green-800', 'opacity-100', 'shadow-md');
+            
+            if (!isCorrect) {
+                // Marcar Incorrecta
+                selectedBtn.classList.remove('border-gray-200');
+                selectedBtn.classList.add('bg-red-100', 'border-red-500', 'text-red-800', 'opacity-100');
+            } else {
+                scores.part1 += 5;
+
+            }
+
+            // Feedback visual
+            const feedbackDiv = document.getElementById(`feedback-${qIndex}`);
+            feedbackDiv.classList.remove('hidden');
+            
+            if (isCorrect) {
+                feedbackDiv.classList.add('bg-green-50', 'text-green-800', 'border', 'border-green-200');
+                feedbackDiv.innerHTML = `<i class="fa-solid fa-circle-check mr-2 text-green-600"></i> ${questionData.feedbackCorrect}`;
+            } else {
+                feedbackDiv.classList.add('bg-red-50', 'text-red-800', 'border', 'border-red-200');
+                feedbackDiv.innerHTML = `<i class="fa-solid fa-circle-xmark mr-2 text-red-600"></i> ${questionData.feedbackIncorrect}`;
+            }
+
+            // Mostrar Parte 2 si terminó
+            if (answeredQuestions.size === 10) {
+                document.getElementById('part2-section').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('part2-section').scrollIntoView({ behavior: 'smooth' });
+                }, 500);
+            }
+        }
+
+        // --- RENDERIZADO PARTE 2 ---
+        function renderPart2() {
+            const pool = document.getElementById('concepts-pool');
+            const descContainer = document.getElementById('descriptions-container');
+            pool.innerHTML = '';
+            descContainer.innerHTML = '';
+
+            const shuffledConcepts = [...part2Data].sort(() => Math.random() - 0.5);
+            
+            shuffledConcepts.forEach((item) => {
+                const conceptDiv = document.createElement('div');
+                conceptDiv.className = 'concept-item bg-white border-2 border-green-300 p-3 rounded-lg text-sm font-semibold text-green-800 shadow-sm text-center select-none';
+                conceptDiv.draggable = true;
+                conceptDiv.id = item.id;
+                conceptDiv.textContent = item.text;
+                
+                conceptDiv.addEventListener('dragstart', dragStart);
+                conceptDiv.addEventListener('dragend', dragEnd);
+                conceptDiv.addEventListener('click', conceptClick);
+
+                pool.appendChild(conceptDiv);
+            });
+
+            const shuffledDesc = [...part2Data].sort(() => Math.random() - 0.5);
+
+            shuffledDesc.forEach((item, index) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100';
+                
+                const dropZone = document.createElement('div');
+                dropZone.className = 'drop-slot flex-shrink-0 w-full sm:w-48 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center p-2 relative';
+                dropZone.id = `slot-${item.match}`; 
+                dropZone.dataset.matchId = item.id; 
+                
+                dropZone.addEventListener('dragover', dragOver);
+                dropZone.addEventListener('dragleave', dragLeave);
+                dropZone.addEventListener('drop', dropElement);
+                dropZone.addEventListener('click', slotClick);
+
+                const textDiv = document.createElement('div');
+                textDiv.className = 'flex-grow text-gray-700 text-sm leading-relaxed';
+                textDiv.innerHTML = `<span class="font-bold text-gray-400 mr-2">${index + 1}.</span> ${item.desc}`;
+
+                rowDiv.appendChild(dropZone);
+                rowDiv.appendChild(textDiv);
+                descContainer.appendChild(rowDiv);
+            });
+        }
+
+        // --- LÓGICA DRAG AND DROP (ESCRITORIO) ---
+        function dragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.id);
+            setTimeout(() => e.target.classList.add('opacity-50'), 0);
+            clearSelection(); 
+        }
+        function dragEnd(e) {
+            e.target.classList.remove('opacity-50');
+        }
+        function dragOver(e) {
+            e.preventDefault(); 
+            e.currentTarget.classList.add('drag-over');
+        }
+        function dragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+        function allowDrop(e) { e.preventDefault(); }
+        
+        function dropElement(e) {
+            e.preventDefault();
+            const targetSlot = e.currentTarget;
+            targetSlot.classList.remove('drag-over');
+            const draggedId = e.dataTransfer.getData('text/plain');
+            moveConcept(draggedId, targetSlot);
+        }
+
+        // --- LÓGICA CLICK-TO-MOVE (MÓVILES) ---
+        function conceptClick(e) {
+            e.stopPropagation();
+            const el = e.target;
+            if (selectedDragElement === el.id) {
+                clearSelection();
+            } else {
+                clearSelection();
+                selectedDragElement = el.id;
+                el.classList.add('ring-4', 'ring-green-400', 'transform', 'scale-105');
+            }
+        }
+        
+        function slotClick(e) {
+            const targetSlot = e.currentTarget;
+            if (selectedDragElement) {
+                moveConcept(selectedDragElement, targetSlot);
+                clearSelection();
+            } else if (targetSlot.children.length > 0) {
+                const concept = targetSlot.children[0];
+                document.getElementById('concepts-pool').appendChild(concept);
+            }
+        }
+
+        function poolClick(e) {
+            if (selectedDragElement && e.target.id === 'concepts-pool') {
+                moveConcept(selectedDragElement, e.currentTarget);
+                clearSelection();
+            }
+        }
+
+        function clearSelection() {
+            if (selectedDragElement) {
+                const el = document.getElementById(selectedDragElement);
+                if(el) el.classList.remove('ring-4', 'ring-green-400', 'transform', 'scale-105');
+                selectedDragElement = null;
+            }
+        }
+
+        function moveConcept(conceptId, targetContainer) {
+            if (!canAnswer()) return;
+            const conceptEl = document.getElementById(conceptId);
+            if (!conceptEl) return;
+
+            if (targetContainer.classList.contains('drop-slot') && targetContainer.children.length > 0) {
+                const existingChild = targetContainer.children[0];
+                const sourceContainer = conceptEl.parentElement;
+                sourceContainer.appendChild(existingChild);
+            }
+
+            targetContainer.appendChild(conceptEl);
+            
+            if(targetContainer.classList.contains('drop-slot')){
+                conceptEl.classList.remove('mb-3');
+                conceptEl.style.width = '100%';
+            } else {
+                conceptEl.style.width = 'auto';
+            }
+        }
+
+        // --- VERIFICACIÓN PARTE 2 ---
+        function verifyPart2() {
+            if (!canAnswer()) return;
+            const slots = [...document.querySelectorAll('.drop-slot')];
+            if (slots.some(slot => !slot.firstElementChild)) {
+                alert('Completa las relaciones o usa Entregar examen para enviar tus respuestas actuales.');
+                return;
+            }
+            finishExam(false);
+        }
+
+        // La calificación se presenta al entregar el examen.
+
+
+        function showFinalModal() {
+            const total = scores.part1 + scores.part2;
+            const modal = document.getElementById('result-modal');
+            const scoreDisplay = document.getElementById('modal-score');
+            const messageDisplay = document.getElementById('modal-message');
+            const iconDisplay = document.getElementById('modal-icon');
+
+            scoreDisplay.textContent = `${total} / 100`;
+
+            if (total === 100) {
+                iconDisplay.innerHTML = '<i class="fa-solid fa-trophy text-yellow-500"></i>';
+                messageDisplay.textContent = "¡Sobresaliente! Has demostrado un dominio absoluto sobre la arquitectura del sistema de Entrada y Salida.";
+                scoreDisplay.className = "text-5xl font-black text-green-600 mb-6";
+            } else if (total >= 80) {
+                iconDisplay.innerHTML = '<i class="fa-solid fa-medal text-green-500"></i>';
+                messageDisplay.textContent = "¡Muy buen trabajo! Tienes un gran conocimiento. Consulta los temas de la unidad para reforzar tu aprendizaje.";
+                scoreDisplay.className = "text-5xl font-black text-green-600 mb-6";
+            } else if (total >= 60) {
+                iconDisplay.innerHTML = '<i class="fa-solid fa-thumbs-up text-orange-500"></i>';
+                messageDisplay.textContent = "Has aprobado, pero aún hay áreas de oportunidad. Te recomiendo repasar las presentaciones sobre los tipos de controladores y discos.";
+                scoreDisplay.className = "text-5xl font-black text-orange-500 mb-6";
+            } else {
+                iconDisplay.innerHTML = '<i class="fa-solid fa-book-open text-red-500"></i>';
+                messageDisplay.textContent = "Es crucial que vuelvas a revisar los documentos sobre DMA, controladores y dispositivos ópticos. ¡No te rindas y repítelo!";
+                scoreDisplay.className = "text-5xl font-black text-red-600 mb-6";
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('modal-content').classList.remove('scale-95');
+                document.getElementById('modal-content').classList.add('scale-100');
+            }, 10);
+        }
+
+        const examContent = document.getElementById('exam-content');
+        const entry = document.getElementById('exam-entry');
+        const clock = document.getElementById('exam-clock');
+        const timerPanel = document.getElementById('timer-panel');
+        let studentName = '';
+        let deadline = 0;
+        let clockInterval;
+        let examState = 'ready';
+
+        document.getElementById('exam-entry-form').addEventListener('submit', event => {
+            event.preventDefault();
+            if (examState !== 'ready') return;
+            const input = document.getElementById('student-name');
+            studentName = input.value.trim();
+            if (!studentName) {
+                input.setCustomValidity('Escribe tu nombre completo.');
+                input.reportValidity();
+                return;
+            }
+            entry.hidden = true;
+            examContent.hidden = false;
+            timerPanel.hidden = false;
+            examState = 'running';
+            deadline = Date.now() + 30 * 60 * 1000;
+            updateClock();
+            clockInterval = setInterval(updateClock, 200);
+        });
+        document.getElementById('student-name').addEventListener('input', event => {
+            event.target.setCustomValidity('');
+        });
+        document.getElementById('finish-exam').addEventListener('click', () => {
+            if (!canAnswer()) return;
+            const matched = document.querySelectorAll('.drop-slot > .concept-item').length;
+            if (answeredQuestions.size < part1Data.length || matched < part2Data.length) {
+                if (!confirm('Hay respuestas pendientes. ¿Quieres entregar el examen ahora?')) return;
+            }
+            if (canAnswer()) finishExam(false);
+        });
+        document.addEventListener('visibilitychange', updateClock);
+
+        function canAnswer() {
+            if (examState !== 'running') return false;
+            if (Date.now() >= deadline) {
+                finishExam(true);
+                return false;
+            }
+            return true;
+        }
+
+        function updateClock() {
+            if (examState !== 'running') return;
+            const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+            clock.textContent = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' +
+                String(seconds % 60).padStart(2, '0');
+            timerPanel.classList.toggle('timer-urgent', seconds <= 300);
+            if (seconds === 0) finishExam(true);
+        }
+
+        function finishExam(timedOut) {
+            if (examState !== 'running') return;
+            examState = 'finished';
+            clearInterval(clockInterval);
+            if (timedOut) clock.textContent = '00:00';
+            examContent.inert = true;
+            scores.part2 = [...document.querySelectorAll('.drop-slot')].filter(
+                slot => slot.firstElementChild?.id === slot.dataset.matchId
+            ).length * 5;
+
+            document.getElementById('result-student').textContent = studentName;
+            document.getElementById('result-reason').textContent = timedOut
+                ? 'Se agotaron los 30 minutos. Se calificaron las respuestas registradas.'
+                : 'Examen entregado.';
+            showFinalModal();
+            document.getElementById('result-modal').querySelector('button').focus();
+        }
+
+        function resetExam() {
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>
